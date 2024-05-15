@@ -1,58 +1,62 @@
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.Semaphore;
 
 public class Philosopher implements Runnable {
-    private int id;
-    private Semaphore forks;
-    private Lock lock;
+    private static final int THINK_TIME = 1000;
+    private static final int EAT_TIME = 1000;
+    private static final int WAIT_TIME = 10000;
 
-    public Philosopher(int id, Semaphore forks, Lock lock) {
+    private int id;
+    private Semaphore availableForks;
+
+    public Philosopher(int id, Semaphore availableForks) {
         this.id = id;
-        this.forks = forks;
-        this.lock = lock;
+        this.availableForks = availableForks;
     }
 
     @Override
     public void run() {
+        think();
         while (true) {
-            think();
-            lock.lock();
-            try {
-                if (forks.tryAcquire(2)) {
-                    System.out.println("Philosopher " + id + " successfully picked up forks");
-                    eat();
-                    System.out.println("Philosopher " + id + " has thought and eaten");
-                    forks.release(2);
-                } else {
-                    System.out.println("Philosopher " + id + " failed to pick up forks");
-                }
-            } finally {
-                lock.unlock();
-            }
-            try {
-                Thread.sleep(1000000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            if (tryPickupForks()) {
+                eat();
+                putDownForks();
+                System.out.println("Philosopher " + id + " has thought and eaten");
+                break;
+            } else {
+                System.out.println("Philosopher " + id + " failed to pick up forks");
+                think();
             }
         }
+        think();
     }
 
     private void think() {
         System.out.println("Philosopher " + id + " is thinking");
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        sleep(THINK_TIME);
+    }
+
+    private boolean tryPickupForks() {
+        return availableForks.tryAcquire(2);
     }
 
     private void eat() {
         System.out.println("Philosopher " + id + " is eating");
+        sleep(EAT_TIME);
+    }
+
+    private void putDownForks() {
+        availableForks.release(2);
+    }
+
+    private void waitBeforeNextAttempt() {
+        sleep(WAIT_TIME);
+    }
+
+    private void sleep(int time) {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(time);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Thread.currentThread().interrupt();
         }
     }
 }
